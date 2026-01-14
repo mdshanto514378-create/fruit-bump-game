@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>ফ্রুট বাম্প গেম</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:sans-serif;background:linear-gradient(#f5f7fa,#c3cfe2);min-height:100vh;padding:20px}
+.container{max-width:500px;margin:0 auto}
+.header{text-align:center;background:linear-gradient(#ff7e5f,#feb47b);color:white;padding:20px;border-radius:15px;margin-bottom:20px}
+.header h1{font-size:2.5rem;margin-bottom:10px}
+.game-info{background:white;padding:15px;border-radius:15px;margin-bottom:20px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.info-box{text-align:center;background:#f8f9fa;padding:10px;border-radius:10px}
+.info-box h3{font-size:0.9rem;color:#666;margin-bottom:5px}
+.info-box p{font-size:1.8rem;font-weight:bold}
+#score{color:#ff7e5f}
+#moves{color:#6f42c1}
+#high-score{color:#20c997}
+.game-board{display:grid;grid-template-columns:repeat(8,1fr);gap:5px;background:linear-gradient(#667eea,#764ba2);padding:10px;border-radius:15px;margin-bottom:20px}
+.fruit-cell{background:white;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.8rem;height:45px;cursor:pointer;user-select:none;box-shadow:0 3px 6px rgba(0,0,0,0.1)}
+.fruit-cell.selected{box-shadow:0 0 0 3px #ff7e5f}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.btn{padding:15px;border:none;border-radius:10px;font-size:1rem;font-weight:bold;cursor:pointer;color:white}
+#reset-btn{background:linear-gradient(#6a11cb,#2575fc)}
+#hint-btn{background:linear-gradient(#ff7e5f,#feb47b)}
+.message{background:linear-gradient(#20c997,#5ee7df);color:white;padding:15px;border-radius:10px;text-align:center;margin-bottom:20px}
+.footer{text-align:center;color:#666;padding:15px}
+.modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;z-index:1000}
+.modal-content{background:white;padding:20px;border-radius:15px;width:90%;max-width:400px;text-align:center}
+.modal-header{background:linear-gradient(#6a11cb,#2575fc);color:white;padding:15px;border-radius:10px 10px 0 0}
+.modal-body{padding:20px}
+.result-score p{font-size:2.5rem;font-weight:bold;color:#ff7e5f;margin:10px 0}
+.play-again-btn{background:linear-gradient(#ff7e5f,#feb47b);color:white;padding:15px;width:100%;border:none;border-radius:10px;font-size:1.1rem;font-weight:bold;margin-top:20px}
+@media (max-width:400px){.fruit-cell{height:40px;font-size:1.5rem}.game-info{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header"><h1>🍎 ফ্রুট বাম্প</h1><p>৩ বা বেশি ফল মিলান!</p></div>
+<div class="game-info">
+<div class="info-box"><h3>স্কোর</h3><p id="score">0</p></div>
+<div class="info-box"><h3>চাল</h3><p id="moves">20</p></div>
+<div class="info-box"><h3>সর্বোচ্চ</h3><p id="high-score">0</p></div>
+</div>
+<div class="game-board" id="game-board"></div>
+<div class="message" id="message">ফল মিলান এবং পয়েন্ট পান!</div>
+<div class="controls">
+<button class="btn" id="reset-btn">🔄 নতুন গেম</button>
+<button class="btn" id="hint-btn">💡 হিন্ট</button>
+</div>
+<div class="footer">মোবাইলে তৈরি ❤️</div>
+</div>
+<div class="modal" id="modal">
+<div class="modal-content">
+<div class="modal-header"><h2>🏆 গেম শেষ!</h2></div>
+<div class="modal-body">
+<div class="result-score"><p id="final-score">0</p></div>
+<button class="play-again-btn" id="play-again">🔄 আবার খেলুন</button>
+</div>
+</div>
+</div>
+<script>
+const fruits=['🍎','🍊','🍌','🍇','🍉','🍓'];
+let grid=[],score=0,moves=20,highScore=0,selected=null,isSwapping=false;
+const board=document.getElementById('game-board'),scoreEl=document.getElementById('score'),
+movesEl=document.getElementById('moves'),highScoreEl=document.getElementById('high-score'),
+messageEl=document.getElementById('message'),modal=document.getElementById('modal'),
+finalScoreEl=document.getElementById('final-score');
+
+function init(){
+grid=[];score=0;moves=20;selected=null;
+highScore=localStorage.getItem('fruitHighScore')||0;
+highScoreEl.textContent=highScore;
+createGrid();render();updateUI();
+}
+
+function createGrid(){
+for(let r=0;r<8;r++){
+grid[r]=[];
+for(let c=0;c<8;c++){
+let fruit;
+do{fruit=fruits[Math.floor(Math.random()*fruits.length)]}
+while((r>=2&&grid[r-1][c]===fruit&&grid[r-2][c]===fruit)||(c>=2&&grid[r][c-1]===fruit&&grid[r][c-2]===fruit));
+grid[r][c]={type:fruit,row:r,col:c};
+}}}
+
+function render(){
+board.innerHTML='';
+for(let r=0;r<8;r++){
+for(let c=0;c<8;c++){
+const cell=document.createElement('div');
+cell.className='fruit-cell';
+cell.textContent=grid[r][c].type;
+cell.dataset.row=r;cell.dataset.col=c;
+cell.onclick=()=>handleClick(r,c);
+board.appendChild(cell);
+}}}
+
+function handleClick(r,c){
+if(isSwapping)return;
+if(!selected){selected={r,c};highlight(r,c);return;}
+if((Math.abs(r-selected.r)===1&&c===selected.col)||(Math.abs(c-selected.col)===1&&r===selected.r)){
+swap(selected.r,selected.c,r,c);
+selected=null;removeHighlights();
+}else{removeHighlights();selected={r,c};highlight(r,c);}}
+
+function highlight(r,c){
+document.querySelector(`[data-row="${r}"][data-col="${c}"]`).classList.add('selected');}
+
+function removeHighlights(){
+document.querySelectorAll('.selected').forEach(el=>el.classList.remove('selected'));}
+
+function swap(r1,c1,r2,c2){
+isSwapping=true;moves--;updateUI();
+[grid[r1][c1],grid[r2][c2]]=[grid[r2][c2],grid[r1][c1]];
+render();
+const matches=findMatches();
+if(matches.length>0){
+setTimeout(()=>{
+removeMatches(matches);dropFruits();fillEmpty();
+setTimeout(()=>{
+const newMatches=findMatches();
+if(newMatches.length>0){removeMatches(newMatches);dropFruits();fillEmpty();}
+isSwapping=false;
+if(moves<=0)endGame();
+},300);
+},500);
+}else{
+[grid[r1][c1],grid[r2][c2]]=[grid[r2][c2],grid[r1][c1]];
+render();isSwapping=false;
+showMessage("মিলেনি! আবার চেষ্টা করুন","#ff6b6b");
+}}
+
+function findMatches(){
+const matches=[];
+for(let r=0;r<8;r++){
+for(let c=0;c<6;c++){
+if(grid[r][c]&&grid[r][c+1]&&grid[r][c+2]){
+if(grid[r][c].type===grid[r][c+1].type&&grid[r][c].type===grid[r][c+2].type){
+for(let i=0;c+i<8&&grid[r][c+i].type===grid[r][c].type;i++)matches.push(grid[r][c+i]);
+}}}} 
+for(let c=0;c<8;c++){
+for(let r=0;r<6;r++){
+if(grid[r]&&grid[r+1]&&grid[r+2]){
+if(grid[r][c].type===grid[r+1][c].type&&grid[r][c].type===grid[r+2][c].type){
+for(let i=0;r+i<8&&grid[r+i][c].type===grid[r][c].type;i++)matches.push(grid[r+i][c]);
+}}}} 
+return [...new Set(matches)];}
+
+function removeMatches(matches){
+matches.forEach(m=>{
+document.querySelector(`[data-row="${m.row}"][data-col="${m.col}"]`).style.opacity='0';
+grid[m.row][m.col]=null;
+});
+score+=matches.length*10;
+if(matches.length>=5)score+=50;
+updateUI();
+showMessage(`${matches.length} ফল মিলেছে! +${matches.length*10} পয়েন্ট`,"#20c997");}
+
+function dropFruits(){
+for(let c=0;c<8;c++){
+let empty=0;
+for(let r=7;r>=0;r--){
+if(!grid[r][c]){empty++;}else if(empty>0){
+grid[r+empty][c]=grid[r][c];
+grid[r][c]=null;
+}}}
+render();}
+
+function fillEmpty(){
+for(let r=0;r<8;r++){
+for(let c=0;c<8;c++){
+if(!grid[r][c]){grid[r][c]={type:fruits[Math.floor(Math.random()*fruits.length)],row:r,col:c};
+}}}
+render();}
+
+function updateUI(){
+scoreEl.textContent=score;
+movesEl.textContent=moves;
+if(score>highScore){highScore=score;localStorage.setItem('fruitHighScore',highScore);highScoreEl.textContent=highScore;}}
+
+function showMessage(text,color){
+messageEl.textContent=text;
+messageEl.style.background=`linear-gradient(${color},${color}99)`;
+setTimeout(()=>{messageEl.textContent='ফল মিলান এবং পয়েন্ট পান!';messageEl.style.background='linear-gradient(#20c997,#5ee7df)';},2000);}
+
+function endGame(){
+finalScoreEl.textContent=score;
+modal.style.display='flex';}
+
+document.getElementById('reset-btn').onclick=init;
+document.getElementById('hint-btn').onclick=showHint;
+document.getElementById('play-again').onclick=()=>{modal.style.display='none';init();};
+modal.onclick=e=>{if(e.target===modal)modal.style.display='none';};
+
+function showHint(){
+for(let r=0;r<8;r++){
+for(let c=0;c<7;c++){
+[grid[r][c],grid[r][c+1]]=[grid[r][c+1],grid[r][c]];
+if(findMatches().length>0){
+[grid[r][c],grid[r][c+1]]=[grid[r][c+1],grid[r][c]];
+highlight(r,c);highlight(r,c+1);
+showMessage("এই ফলগুলো বদলান!","#6a11cb");
+setTimeout(removeHighlights,1500);
+return;
+}
+[grid[r][c],grid[r][c+1]]=[grid[r][c+1],grid[r][c]];
+}}
+showMessage("হিন্ট পাওয়া যায়নি!","#ff6b6b");}
+
+window.onload=init;
+</script>
+</body>
+</html>
